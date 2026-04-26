@@ -1,0 +1,22 @@
+{
+  "name": "backend",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@langchain/core": "^1.1.41",
+    "@langchain/groq": "^1.2.0",
+    "@langchain/openai": "^1.4.4",
+    "@tavily/core": "^0.7.2",
+    "@types/express": "^5.0.6",
+    "express": "^5.2.1",
+    "langchain": "^1.3.4",
+    "zod": "^4.3.6"
+  }
+}
