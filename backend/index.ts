@@ -1,4 +1,4 @@
-// We are going to build the /conversation endpoint
+// We are going to build the /conversation writepoint
 import express from "express"; 
 // add the types of express by bun add@types/express
 
@@ -16,11 +16,31 @@ const app=express()
 
 app.use(express.json())
 
+// SignUp
+app.post('/signup',async(req,res)=>{
+
+})
+
+// Signin
+app.post('/signin',async(req,res)=>{
+
+})
+
+// past conversations get
+app.get('/conversations',async(req,res)=>{
+
+})
+
+// Past conversation get
+app.get('/conversation/:conversationId',async (req,res)=>{
+    
+})
+
 app.post('/perplexity_ask',async(req,res)=>{
     // get the  query from the user
     const query=req.body.query;
 
-    // make sure user has access/credits to hit the endpoint
+    // make sure user has access/credits to hit the writepoint
 
 
     //Check if we have web search indexed for a similar query
@@ -60,16 +80,43 @@ app.post('/perplexity_ask',async(req,res)=>{
     })
 
     for await (const chunk of stream){
-        // res.end()--> Stream the response
-        res.end(chunk)
+        // res.write()--> Stream the response
+        res.write(chunk)
     }
  
-
+    res.write('\n<Sources>\n')
     // also stream back the sources and the follow up questions (which we can get from a parallel LLM call)
+
+    res.write(JSON.stringify(webSearchResult.map(result=>({url:result.url}))))
+    // Check eventStream in docs (if you forgot)
+
+    res.write('\n</Sources>\n')
+
+    // Close the event stream
+    res.end();
+    
 });
 
 // Reverse Engineering
-// On clicking the Network tab and sending a request we see a perplexity_ask endpoint
-// that is sending the response
+// On clicking the Network tab and swriteing a request we see a perplexity_ask writepoint
+// that is swriteing the response
+
+
+// The user can send follow up questions regarding the prev questions
+app.post('/perplexity_ask/followup',async(req,res)=>{
+    // Get the existing chat from the db
+
+    // Forward the full history to the LLM
+
+    // Do Context engineering here to summarize the history
+
+    // Stream the response to the user
+})
+
+// Tasks for Backend:
+// 1. Add auth
+// 2. Add a database layer using supabase
+// 3. Add a user/credit/conversation table
+// 4. TODO - Add stripe payment
 
 app.listen(3000)
