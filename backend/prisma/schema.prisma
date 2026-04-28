@@ -1,0 +1,70 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// defining the schema of our backend
+
+model User{
+  id            String  @id   @default(uuid())
+  email         String
+  provider      AuthProvider
+  name          String  
+  conversations Conversation[]
+}
+
+enum AuthProvider{
+  Github
+  Google
+}
+
+model Conversation{
+  id            String      @id         @default(uuid())
+  title         String?
+  slug          String  //What appears in the URL bar when we open that specific conversation
+  userId        String
+  user          User    @relation(fields:[userId],references:[id])
+  Message       Message[]
+}
+
+model Message{
+  id                    Int      @id       @default(autoincrement())
+  content               String
+  role                  MessageRole
+  conversationId        String
+  conversation          Conversation       @relation(fields: [conversationId],references:[id])
+  createdAt             DateTime    @default(now())
+}
+
+enum MessageRole{
+  User
+  Assstant
+}
+
+//setting up the db
+//bunx prisma migrate dev
+//Note : If we get Failed to load config file "C:\Users\Tridib Roy Chowdhury\OneDrive\Desktop\CODING\Building My Perplexity\backend" as a TypeScript/JavaScript module. Error: PrismaConfigEnvError: Cannot resolve environment variable: DATABASE_URL.
+//set DATABASE_URL=postgresql://postgres.tszhhfaujgmqpwiqsnlo:[password]@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres (Write it in the terminal) --> Write it as a env variable
+//Note: use the DIRECT URL (used for migration)
+
+//bunx prisma generate-->Generate a prisma client(Generates JS/TS client code)
+//model User {
+// id    String @id @default(uuid())
+//  email String
+//}
+//This is converted to 
+//const user = await prisma.user.create({
+//  data: {
+//    email: "test@example.com"
+////  }
+})
+

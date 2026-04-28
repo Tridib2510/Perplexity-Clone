@@ -11,6 +11,8 @@ import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { StringOutputParser } from "@langchain/core/output_parsers";
 import {z} from 'zod' //will be used to get a proper structured output
 
+import {prisma} from './db'
+
 const client=tavily({apiKey:process.env.TAVILY_API_KEY})
 const app=express()
 
@@ -118,5 +120,10 @@ app.post('/perplexity_ask/followup',async(req,res)=>{
 // 2. Add a database layer using supabase
 // 3. Add a user/credit/conversation table
 // 4. TODO - Add stripe payment
+
+// Steps to use prisma in Bun
+// bun add -d prisma
+// bun add @prisma/client @prisma/extension-accelerate
+// bunx --bun prisma init --> We are going to use it as an ORM
 
 app.listen(3000)
