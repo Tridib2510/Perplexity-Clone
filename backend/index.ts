@@ -127,3 +127,6 @@ app.post('/perplexity_ask/followup',async(req,res)=>{
 // bunx --bun prisma init --> We are going to use it as an ORM
 
 app.listen(3000)
+
+
+// To use bun just type bun init is choose our requirements
