@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(bun run *)",
-      "mcp__ide__getDiagnostics",
-      "Bash(bun add *)"
-    ]
-  }
-}
