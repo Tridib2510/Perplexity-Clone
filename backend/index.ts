@@ -13,90 +13,140 @@ import {z} from 'zod' //will be used to get a proper structured output
 
 import {prisma} from './db'
 
+import { middleware } from "./middleware";
+
+import cors from "cors" //bun add cors @types/cors
+
 const client=tavily({apiKey:process.env.TAVILY_API_KEY})
 const app=express()
 
 app.use(express.json())
-
-// SignUp
-app.post('/signup',async(req,res)=>{
-
-})
-
-// Signin
-app.post('/signin',async(req,res)=>{
-
-})
+app.use(cors())
 
 // past conversations get
-app.get('/conversations',async(req,res)=>{
+app.get('/conversations', middleware, async (req, res) => {
+    const conversations = await prisma.conversation.findMany({
+        where: {
+            userId: req.userId
+        },
+        orderBy: {
+            createdAt: 'desc'
+        }
+    });
 
-})
+    res.json({
+        conversations
+    });
+});
 
 // Past conversation get
-app.get('/conversation/:conversationId',async (req,res)=>{
-    
-})
+app.get('/conversation/:conversationId', middleware, async (req, res) => {
+    const conversationId = req.params.conversationId as string;
 
-app.post('/perplexity_ask',async(req,res)=>{
-    // get the  query from the user
-    const query=req.body.query;
+    const conversation = await prisma.conversation.findFirst({
+        where: {
+            id: conversationId,
+            userId: req.userId
+        },
+        include: {
+            Message: {
+                orderBy: {
+                    createdAt: 'asc'
+                }
+            }
+        }
+    });
 
-    // make sure user has access/credits to hit the writepoint
-
-
-    //Check if we have web search indexed for a similar query
-
-    // Web search to gather resources
-    const webSearchResponse=await client.search(query,{
-        searchDepth:"advanced"
-    })
-
-    const webSearchResult=webSearchResponse.results
-
-    // do some context engineering on the prompt + web search responses
-
-    // hit the LLM and stream back the response
-    // Harikirat use VercelAI gateway and vercel AI sdk . I am going to use use Langchain Groq api
-
-    const model=new ChatGroq({
-        model:"llama-3.3-70b-versatile",
-        apiKey:process.env.GROQ_API_KEY
-    })
-
-    const prompt=ChatPromptTemplate.fromMessages([
-        ["system",SYSTEM_PROMPT],
-        ["human",PROMPT_TEMPLATE]
-    ])
-
-    // const schema=z.object({
-    //     followups:z.array(z.string()),
-    //     answer:z.string()
-    // })
-    
-    const chain=prompt.pipe(model).pipe(new StringOutputParser())
-
-    const stream=await chain.stream({
-        WEB_SEARCH_RESULTS:webSearchResult,
-        USER_QUERY:query
-    })
-
-    for await (const chunk of stream){
-        // res.write()--> Stream the response
-        res.write(chunk)
+    if (!conversation) {
+        res.status(404).json({ message: "Conversation not found" });
+        return;
     }
- 
-    res.write('\n<Sources>\n')
-    // also stream back the sources and the follow up questions (which we can get from a parallel LLM call)
 
-    res.write(JSON.stringify(webSearchResult.map(result=>({url:result.url}))))
-    // Check eventStream in docs (if you forgot)
+    res.json({
+        conversation
+    });
+});
 
-    res.write('\n</Sources>\n')
+app.post('/perplexity_ask', middleware, async (req, res) => {
+    res.setHeader('Content-Type', 'text/plain');
+    const query = req.body.query;
+    const conversationId = req.body.conversationId;
 
-    // Close the event stream
+    let conversation;
+
+    if (conversationId) {
+        conversation = await prisma.conversation.findFirst({
+            where: {
+                id: conversationId,
+                userId: req.userId
+            }
+        });
+    }
+
+    if (!conversation) {
+        conversation = await prisma.conversation.create({
+            data: {
+                userId: req.userId,
+                title: query.slice(0, 50),
+                slug: query.slice(0, 50).toLowerCase().replace(/\s+/g, '-')
+            }
+        });
+    }
+
+    // Include conversation ID at the start of the stream
+    res.write(`<ConversationId>${conversation.id}</ConversationId>\n`);
+
+    const webSearchResponse = await client.search(query, {
+        searchDepth: "advanced"
+    });
+
+    const webSearchResult = webSearchResponse.results;
+
+    const model = new ChatGroq({
+        model: "llama-3.3-70b-versatile",
+        apiKey: process.env.GROQ_API_KEY
+    });
+
+    const prompt = ChatPromptTemplate.fromMessages([
+        ["system", SYSTEM_PROMPT],
+        ["human", PROMPT_TEMPLATE]
+    ]);
+
+    const chain = prompt.pipe(model).pipe(new StringOutputParser());
+
+    const stream = await chain.stream({
+        WEB_SEARCH_RESULTS: webSearchResult,
+        USER_QUERY: query
+    });
+
+    let fullResponse = '';
+
+    for await (const chunk of stream) {
+        res.write(chunk);
+        fullResponse += chunk;
+    }
+
+    res.write('\n<Sources>\n');
+    res.write(JSON.stringify(webSearchResult.map(result => ({ url: result.url }))));
+    res.write('\n</Sources>\n');
+
+    await prisma.message.create({
+        data: {
+            content: query,
+            role: 'User',
+            conversationId: conversation.id
+        }
+    });
+
+    await prisma.message.create({
+        data: {
+            content: fullResponse,
+            role: 'Assistant',
+            conversationId: conversation.id
+        }
+    });
+
     res.end();
-    
 });
 
 // Reverse Engineering
@@ -105,15 +155,90 @@ app.post('/perplexity_ask',async(req,res)=>{
 
 
 // The user can send follow up questions regarding the prev questions
-app.post('/perplexity_ask/followup',async(req,res)=>{
-    // Get the existing chat from the db
+app.post('/perplexity_ask/followup', middleware, async (req, res) => {
+    res.setHeader('Content-Type', 'text/plain');
+    const { query, conversationId } = req.body;
 
-    // Forward the full history to the LLM
+    if (!query || !conversationId) {
+        res.status(400).json({ message: "Query and conversationId are required" });
+        return;
+    }
 
-    // Do Context engineering here to summarize the history
+    const conversation = await prisma.conversation.findFirst({
+        where: {
+            id: conversationId,
+            userId: req.userId
+        },
+        include: {
+            Message: {
+                orderBy: {
+                    createdAt: 'asc'
+                }
+            }
+        }
+    });
 
-    // Stream the response to the user
-})
+    if (!conversation) {
+        res.status(404).json({ message: "Conversation not found" });
+        return;
+    }
+
+    const history = conversation.Message.map(m =>
+        `${m.role === 'User' ? 'Human' : 'Assistant'}: ${m.content}`
+    ).join('\n');
+
+    const webSearchResponse = await client.search(query, {
+        searchDepth: "advanced"
+    });
+
+    const webSearchResult = webSearchResponse.results;
+
+    const model = new ChatGroq({
+        model: "llama-3.3-70b-versatile",
+        apiKey: process.env.GROQ_API_KEY
+    });
+
+    const prompt = ChatPromptTemplate.fromMessages([
+        ["system", SYSTEM_PROMPT + `\n\nPrevious conversation:\n${history}`],
+        ["human", PROMPT_TEMPLATE]
+    ]);
+
+    const chain = prompt.pipe(model).pipe(new StringOutputParser());
+
+    const stream = await chain.stream({
+        WEB_SEARCH_RESULTS: webSearchResult,
+        USER_QUERY: query
+    });
+
+    let fullResponse = '';
+
+    for await (const chunk of stream) {
+        res.write(chunk);
+        fullResponse += chunk;
+    }
+
+    res.write('\n<Sources>\n');
+    res.write(JSON.stringify(webSearchResult.map(result => ({ url: result.url }))));
+    res.write('\n</Sources>\n');
+
+    await prisma.message.create({
+        data: {
+            content: query,
+            role: 'User',
+            conversationId: conversation.id
+        }
+    });
+
+    await prisma.message.create({
+        data: {
+            content: fullResponse,
+            role: 'Assistant',
+            conversationId: conversation.id
+        }
+    });
+
+    res.end();
+});
 
 // Tasks for Backend:
 // 1. Add auth
@@ -126,7 +251,9 @@ app.post('/perplexity_ask/followup',async(req,res)=>{
 // bun add @prisma/client @prisma/extension-accelerate
 // bunx --bun prisma init --> We are going to use it as an ORM
 
-app.listen(3000)
+app.listen(3001)
 
 
 // To use bun just type bun init is choose our requirements
+
+

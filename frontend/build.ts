@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 import { build, type BuildConfig } from "bun";
-import plugin from "bun-plugin-tailwind";
 import { existsSync } from "fs";
 import { rm } from "fs/promises";
 import path from "path";
@@ -144,7 +143,6 @@ console.log(`📄 Found ${entrypoints.length} HTML ${entrypoints.length === 1 ? 
 const result = await build({
   entrypoints,
   outdir,
-  plugins: [plugin],
   minify: true,
   target: "browser",
   sourcemap: "linked",

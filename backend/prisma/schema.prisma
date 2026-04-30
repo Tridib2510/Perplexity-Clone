@@ -16,7 +16,7 @@ datasource db {
 
 model User{
   id            String  @id   @default(uuid())
-  email         String
+  email         String  @unique
   provider      AuthProvider
   name          String  
   supabaseId    String
@@ -35,6 +35,7 @@ model Conversation{
   userId        String
   user          User    @relation(fields:[userId],references:[id])
   Message       Message[]
+  createdAt     DateTime    @default(now())
 }
 
 model Message{
@@ -48,13 +49,13 @@ model Message{
 
 enum MessageRole{
   User
-  Assstant
+  Assistant
 }
 
 //setting up the db
 //bunx prisma migrate dev
 //Note : If we get Failed to load config file "C:\Users\Tridib Roy Chowdhury\OneDrive\Desktop\CODING\Building My Perplexity\backend" as a TypeScript/JavaScript module. Error: PrismaConfigEnvError: Cannot resolve environment variable: DATABASE_URL.
-//set DATABASE_URL=postgresql://postgres.tszhhfaujgmqpwiqsnlo:[password]@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres (Write it in the terminal) --> Write it as a env variable
+//set DATABASE_URL=postgresql://postgres.tszhhfaujgmqpwiqsnlo:Tridib@25102013@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres (Write it in the terminal) --> Write it as a env variable
 //Note: use the DIRECT URL (used for migration)
 
 //bunx prisma generate-->Generate a prisma client(Generates JS/TS client code)
@@ -66,6 +67,8 @@ enum MessageRole{
 //const user = await prisma.user.create({
 //  data: {
 //    email: "test@example.com"
-////  }
-})
+//  }
+// })
+
+//use bunx prisma migrate dev & bunx prisma generate everytime we make changes in our schema
 
