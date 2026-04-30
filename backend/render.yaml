@@ -1,0 +1,54 @@
+{
+  "name": "backend", 
+  // Name of your service/project (used internally by deployment platform)
+
+  "docker": {
+    "image": "oven/bun:1-alpine",
+    // Base Docker image → lightweight Bun runtime (Alpine = small, fast)
+
+    "workdir": "/app"
+    // Inside the container, your code will live in /app
+  },
+
+  "builder": "bun",
+  // Tells the platform to use Bun instead of Node/npm/yarn for installing & running
+
+  "scripts": {
+    "start": "bun index.ts"
+    // Command used to START your backend server
+    // This runs your main file (index.ts) using Bun
+  },
+
+  "envVars": {
+    "GROQ_API_KEY": {
+      "description": "API key for Groq LLM"
+      // Used to call Groq's LLM APIs (like OpenAI alternative)
+    },
+
+    "TAVILY_API_KEY": {
+      "description": "API key for Tavily search"
+      // Used for web search functionality (AI agents / retrieval)
+    },
+
+    "DATABASE_URL": {
+      "description": "PostgreSQL connection string"
+      // Critical → Prisma uses this to connect to your database
+      // Format: postgresql://user:password@host:port/db
+    },
+
+    "SUPABASE_URL": {
+      "description": "Supabase project URL"
+      // Your Supabase project endpoint (like https://xyz.supabase.co)
+    },
+
+    "SUPABASE_ANON_KEY": {
+      "description": "Supabase anonymous key"
+      // Public key → used for client-side or limited access
+    },
+
+    "SUPABASE_SERVICE_ROLE_KEY": {
+      "description": "Supabase service role key"
+      // SECRET key → full admin access (NEVER expose to frontend)
+    }
+  }
+}
