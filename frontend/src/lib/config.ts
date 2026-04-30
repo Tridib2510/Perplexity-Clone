@@ -1,1 +1,1 @@
-export const BACKEND_URL="http://localhost:3001"
+export const BACKEND_URL="https://perplexity-clone-a8jn.onrender.com"
