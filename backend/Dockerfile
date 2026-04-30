@@ -12,8 +12,8 @@ COPY types ./types
 # Install dependencies
 RUN bun install
 
-# Generate Prisma client (creates the generated folder)
-RUN bunx prisma generate
+# Generate Prisma client (needs DATABASE_URL at build time for config)
+RUN DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder" bunx prisma generate
 
 # Production stage
 FROM oven/bun:1-alpine AS production
@@ -27,9 +27,6 @@ COPY --from=builder /app/prisma ./prisma
 COPY package.json tsconfig.json prisma.config.ts ./
 COPY index.ts middleware.ts client.ts db.ts prompt.ts ./
 COPY types ./types
-
-# Generate Prisma client in production
-RUN bunx prisma generate
 
 # Expose port (Render uses PORT env var, defaults to 10000)
 ENV PORT=10000
