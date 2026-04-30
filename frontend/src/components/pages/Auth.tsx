@@ -1,14 +1,15 @@
 import { createClient } from "@/lib/client";
-import { Search, Github, Mail } from "lucide-react";
+import { Search, Github } from "lucide-react";
 
 const supabase = createClient();
 
 export default function Auth() {
   async function login(provider: "github" | "google") {
+    const redirectTo = window.location.origin;
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: window.location.origin,
+        redirectTo,
       },
     });
 
