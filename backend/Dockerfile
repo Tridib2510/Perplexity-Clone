@@ -5,8 +5,8 @@ WORKDIR /app
 
 # Copy application files
 COPY package.json tsconfig.json prisma.config.ts ./
-COPY backend/prisma ./prisma
-COPY backend/generated ./generated
+COPY prisma ./prisma
+COPY generated ./generated
 COPY index.ts middleware.ts client.ts db.ts prompt.ts ./
 COPY types ./types
 
