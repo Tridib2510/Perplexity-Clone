@@ -1,11 +1,6 @@
 {
-  "buildCommand": "bun run build",
+  "buildCommand": "bun run build.ts",
   "outputDirectory": "dist",
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ],
-  "env": {
-    "BUN_PUBLIC_SUPABASE_URL": "https://tszhhfaujgmqpwiqsnlo.supabase.co",
-    "BUN_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_4WwuSRIA_tJzmm4V8DMF8A_6fIaYh9r"
-  }
+  "installCommand": "bun install",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

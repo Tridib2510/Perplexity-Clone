@@ -167,3 +167,19 @@ console.table(outputTable);
 const buildTime = (end - start).toFixed(2);
 
 console.log(`\n✅ Build completed in ${buildTime}ms\n`);
+
+// Auto-inject CSS into HTML
+const cssFiles = [...new Bun.Glob("*.css").scanSync(outdir)];
+if (cssFiles.length > 0) {
+  const cssFile = cssFiles[0];
+  const htmlPath = path.join(outdir, "index.html");
+  let html = await Bun.file(htmlPath).text();
+  if (!html.includes(cssFile)) {
+    html = html.replace(
+      "</head>",
+      `  <link rel="stylesheet" href="./${cssFile}" />\n</head>`
+    );
+    await Bun.write(htmlPath, html);
+    console.log(`💉 Injected CSS: ${cssFile}`);
+  }
+}
