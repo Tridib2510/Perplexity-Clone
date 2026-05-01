@@ -41,18 +41,11 @@ const toCamelCase = (str: string): string => {
 
 // Helper function to parse a value into appropriate type
 const parseValue = (value: string): any => {
-  // Handle true/false strings
   if (value === "true") return true;
   if (value === "false") return false;
-
-  // Handle numbers
   if (/^\d+$/.test(value)) return parseInt(value, 10);
   if (/^\d*\.\d+$/.test(value)) return parseFloat(value);
-
-  // Handle arrays (comma-separated)
   if (value.includes(",")) return value.split(",").map(v => v.trim());
-
-  // Default to string
   return value;
 };
 
@@ -65,21 +58,18 @@ function parseArgs(): Partial<BuildConfig> {
     const arg = args[i];
     if (!arg.startsWith("--")) continue;
 
-    // Handle --no-* flags
     if (arg.startsWith("--no-")) {
       const key = toCamelCase(arg.slice(5));
       config[key] = false;
       continue;
     }
 
-    // Handle --flag (boolean true)
     if (!arg.includes("=") && (i === args.length - 1 || args[i + 1].startsWith("--"))) {
       const key = toCamelCase(arg.slice(2));
       config[key] = true;
       continue;
     }
 
-    // Handle --key=value or --key value
     let key: string;
     let value: string;
 
@@ -90,10 +80,8 @@ function parseArgs(): Partial<BuildConfig> {
       value = args[++i];
     }
 
-    // Convert kebab-case key to camelCase
     key = toCamelCase(key);
 
-    // Handle nested properties (e.g. --minify.whitespace)
     if (key.includes(".")) {
       const [parentKey, childKey] = key.split(".");
       config[parentKey] = config[parentKey] || {};
@@ -111,35 +99,45 @@ const formatFileSize = (bytes: number): string => {
   const units = ["B", "KB", "MB", "GB"];
   let size = bytes;
   let unitIndex = 0;
-
   while (size >= 1024 && unitIndex < units.length - 1) {
     size /= 1024;
     unitIndex++;
   }
-
   return `${size.toFixed(2)} ${units[unitIndex]}`;
 };
 
 console.log("\n🚀 Starting build process...\n");
 
-// Parse CLI arguments with our magical parser
 const cliConfig = parseArgs();
-const outdir = cliConfig.outdir || path.join(process.cwd(), "dist");
+const outdir = (cliConfig.outdir as string) || path.join(process.cwd(), "dist");
 
+// Clean previous build
 if (existsSync(outdir)) {
-  console.log(`🗑️ Cleaning previous build at ${outdir}`);
+  console.log(`🗑️  Cleaning previous build at ${outdir}`);
   await rm(outdir, { recursive: true, force: true });
 }
 
+// ─── Step 1: Build Tailwind CSS ───────────────────────────────────────────────
+const tailwindBuild = Bun.spawn(
+  ["bunx", "@tailwindcss/cli", "-i", "./src/index.css", "-o", `./dist/tailwind.css`, "--minify"],
+  { stdout: "inherit", stderr: "inherit", cwd: process.cwd() }
+);
+const tailwindExit = await tailwindBuild.exited;
+if (tailwindExit !== 0) {
+  console.error("❌ Tailwind CSS build failed");
+  process.exit(1);
+}
+console.log("\n✅ Tailwind CSS built successfully\n");
+
+// ─── Step 2: Bun Bundle (HTML + JS) ──────────────────────────────────────────
 const start = performance.now();
 
-// Scan for all HTML files in the project
 const entrypoints = [...new Bun.Glob("**.html").scanSync("src")]
   .map(a => path.resolve("src", a))
   .filter(dir => !dir.includes("node_modules"));
+
 console.log(`📄 Found ${entrypoints.length} HTML ${entrypoints.length === 1 ? "file" : "files"} to process\n`);
 
-// Build all the HTML files
 const result = await build({
   entrypoints,
   outdir,
@@ -151,10 +149,9 @@ const result = await build({
     "process.env.BUN_PUBLIC_SUPABASE_URL": JSON.stringify(process.env.BUN_PUBLIC_SUPABASE_URL || ""),
     "process.env.BUN_PUBLIC_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(process.env.BUN_PUBLIC_SUPABASE_PUBLISHABLE_KEY || ""),
   },
-  ...cliConfig, // Merge in any CLI-provided options
+  ...cliConfig,
 });
 
-// Print the results
 const end = performance.now();
 
 const outputTable = result.outputs.map(output => ({
@@ -164,6 +161,19 @@ const outputTable = result.outputs.map(output => ({
 }));
 
 console.table(outputTable);
-const buildTime = (end - start).toFixed(2);
+console.log(`\n✅ Build completed in ${(end - start).toFixed(2)}ms\n`);
 
-console.log(`\n✅ Build completed in ${buildTime}ms\n`);
+// ─── Step 3: Inject Tailwind CSS link into HTML ───────────────────────────────
+const htmlPath = path.join(outdir, "index.html");
+let html = await Bun.file(htmlPath).text();
+
+if (!html.includes("tailwind.css")) {
+  html = html.replace(
+    "</head>",
+    `  <link rel="stylesheet" href="./tailwind.css" />\n</head>`
+  );
+  await Bun.write(htmlPath, html);
+  console.log(`💉 Injected Tailwind CSS into index.html\n`);
+}
+
+console.log("🎉 All done! Ready to deploy.\n");
