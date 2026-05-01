@@ -124,7 +124,7 @@ const tailwindBuild = Bun.spawn(
 );
 const tailwindExit = await tailwindBuild.exited;
 if (tailwindExit !== 0) {
-  console.error("❌ Tailwind CSS build failed");
+  console.error("❌ Tailwind CSS build failed");//
   process.exit(1);
 }
 console.log("\n✅ Tailwind CSS built successfully\n");
